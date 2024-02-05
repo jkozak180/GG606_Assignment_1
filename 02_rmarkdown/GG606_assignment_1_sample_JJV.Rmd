@@ -1,0 +1,74 @@
+---
+title: "GG606 - Assignment 1"
+author: "Student Name"
+date: "`r paste(format(Sys.Date(), '%Y-%m-%d'))`"
+output: html_document
+---
+
+
+## Assignment 1 - Importing, parsing, and querying data in the wild
+
+1. Read the data in and clean it for analysis, using the readr package functions for reading and parsing data. Provide a few comments on the types of earthquakes and the sources of information of the earthquakes. \[5 marks\]
+
+```{r echo=TRUE}
+#code 
+#***********************************
+library(readr)
+
+
+```
+
+My answer is written here and is explains what I did and why.
+
+
+
+2. Did more earthquakes happen on weekends or weekdays? Include a figure \[5 marks\]
+```{r echo=TRUE}
+#code 
+#***********************************
+
+
+
+```
+
+The above analysis demonstrates...
+
+
+3. Has there been any change in the frequency of earthquakes? Include a figure \[5 marks\]
+```{r echo=TRUE}
+#code 
+#***********************************
+
+
+
+```
+
+The above analysis demonstrates...
+
+
+4. Where were there more earthquakes in the 1990s, South America or North America? Include a figure \[5 marks\]
+```{r echo=TRUE}
+#code 
+#***********************************
+
+
+
+```
+
+The above analysis demonstrates...
+
+
+5. Comment on changes in the data with time: a) earthquakes per year, b) type of earthquakes, and c) magnitude resolution. Include a figure \[5 marks\]
+```{r echo=TRUE}
+#code 
+#***********************************
+
+
+
+```
+
+The above analysis demonstrates...
+
+
+6. Comment on how lessons from Wilke’s Fundamentals of Data Visualization were applied to each figure with specific reference to book sections \[5 marks\]
+
