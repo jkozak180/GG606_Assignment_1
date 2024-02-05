@@ -18,13 +18,4 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-editing document in A1 folder
-```{r}
-
-```
-
-```{r}
-
-```
-
+trouble pushing...
