@@ -18,8 +18,9 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+##**Assignment 1 - Importing, parsing, and querying data in the wild**
 
-editing document in A1 folder
+
 ```{r}
 
 ```
