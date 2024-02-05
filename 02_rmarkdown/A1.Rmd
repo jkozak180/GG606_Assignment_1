@@ -18,52 +18,101 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-##**Assignment 1 - Importing, parsing, and querying data in the wild**
+#**Assignment 1 - Importing, parsing, and querying data in the wild**
 
 
-### 1. Loading Things: \
+## 1. Loading Things: \
 
-##### 1.1: Loading Packages \
+#### 1.1: Loading Packages \
 Load in any and all packages required to manipulate, transform, and illustrate 
 data given. 
-```{r}
+```{r Loading Packages, include=TRUE}
 #Functional:
+library(googlesheets4)
 library(tidyverse)     #Package to process our data, stylized formation
 library(dplyr)         #Sub tidyverse package for data manipulation 
+library(vroom)
 library(magrittr)      #Package to help coding sequencing 
 library(janitor)       #Package for 'clean_names()' function
 library(readr)         #Package to help parse rectangular data
 library(stringr)       #Package to deal w/ NAs and manipulate cols/data
 library(lubridate)     #Package for date processing and plotting
 library(broom.mixed)   #Package to clean diverse model outputs
-
-#Aesthethics:
+library(fedmatch)
+#Aesthetics:
 library(ggplot2)       #Package to generate plotted data
 library(patchwork)     #Package for extensive plotted data configuration 
-library(ggtheme)       #Package for extra themes, scales, and geoms for plotted data
+library(ggthemes)      #Package for extra themes, scales, and geoms for plotted data
 library(RColorBrewer)  #Package to colour plots
 library(viridisLite)   #Package to colour plots
 
 library(here)          #Package to set working directory via `.Rproj`
+#getwd()               #Function to affirm working directory 
 ```
 
 
+________________________________________________________________________________
 
-##### 1.2: Loading Data \
+### Question 1: \
+*Read the data in and clean it for analysis, using the readr package functions for reading and parsing data. Provide a few comments on the types of earthquakes and the sources of information of the earthquakes.*[5 marks]
+
+
+#### 1.2: Loading Data \
 The `.csv` data file given has been loaded onto a Google platform and published as
 a URL in order to (hopefully) grant universal user access. However, this becomes defeatist when loading the following code chunk, which requires a redetermined
-plot theme function. To ignore the errow message, remove code chunk two. 
+plot theme function. To ignore the error message, remove code chunk two. 
 
 ```{r Loading Data, inlcude=TRUE}
-https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml?gid=1389465964&single=true
+earthquake=read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml?gid=1389465964&single=true", col_names=FALSE) %>%
+print()
+```
+
+```{r}
+earth=read_sheet("https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml")
 ```
 
 
-##### 1.3: Loading Select Functions \
 
-We will be applying a pre-determined function that has previously been generated. Here, the function is titled theme_juicy.R, and will be used for any and all figures generated.
+Okay... soooo. A *lot* of stuff happened, or tried to happen, here. I have removed
+all lines of code which did not end up working out. But relevant thought processes 
+that stuck around: \
+- Working with the time kinda messed with my mind. The format given to us is 
+like so: 1960-01-02T12:21:58.720Z (YYYY-MM-DD Time(military): HH:MM:SSS (TimeZone UTC). But the Zulu UTC time was not in the proper format (ex: - 0800) in order to use 
+`%z` or `%Z` in any date formatting sequences.. which is why I removed that last 
+part of the time column. We are not using the time change for any data analysis
+here, which is why it got cut, but should have been needed we would have had to
+continue figuring that out. 
+
+```{r Loading Data Local 2, include=TRUE}
+countries=read.csv(here("01_raw_data", "countries.csv"))  #load in datasets
+earthquakes=read.csv(here("01_raw_data","earthquakes_5.5_1960-2023.csv")) %>%
+  clean_names() %>%                                  #clean all col headers
+  mutate(time=str_extract(time, "[[:graph:]T[:graph:]]*(?<=[:punct:])")) %>%
+  mutate(time=as.POSIXct("1960-01-02T12:21:58.", format="%Y-%m-%dT%H:%M:%S.", 
+                         tz="UTC")) %>%            #convert from chr to date
+  mutate(country=str_extract(place, "(?<=[:graph:], )[:graph:]*")) %>% 
+  mutate(country=remove.nas=TRUE) %>%
+  arrange(desc(mag)) %>%                  #arrange by highest magnitude first
+  select(time, country, everything()) %>% #reorder dt
+  print()                                #View object created loads in properly 
+```
+Now that the dataset has been manipulated in the way that I want it, here are some observations that I notice: \
+1. 
+
+```{r}
+
+```
+
+
+#### 1.3: Loading Select Functions \
+
+Lastly... We will be applying a pre-determined function that has previously been generated. Here, the function is titled theme_juicy.R, and will be used for any 
+and all figures generated.
 ```{r Loading Functions, include=TRUE}
 source(here("functions", "theme_juicy.R")) #load from 'functions' folder
 theme_set(theme_juicy())                   #auto-apply as theme for plots
 ```
+
+
+
 
