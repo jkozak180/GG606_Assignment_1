@@ -1,5 +1,6 @@
 country,continent
-Antigua and Barbuda,North America
+Antigua,North America
+Barbuda,North America
 Bahamas,North America
 Barbados,North America
 Belize,North America
@@ -17,8 +18,25 @@ Jamaica,North America
 Mexico,North America
 Nicaragua,North America
 Panama,North America
-Saint Kitts and Nevis,North America
+Saint Kitts,North America
+Nevis,North America
 Saint Lucia,North America
-Saint Vincent and the Grenadines,North America
-Trinidad and Tobago,North America
+Saint Vincent,North America
+Grenadines,North America
+Trinidad,North America
+Tobago,North America
 United States,North America
+Argentina,South America
+Bolivia,South America
+Brazil,South America
+Chile,South America
+Colombia,South America
+Ecuador,South America
+Falkland Islands,South America
+French Guiana,South America
+Guyana,South America
+Paraguay,South America
+Peru,South America
+Suriname,South America
+Uruguay,South America
+Venezuela,South America

@@ -19,8 +19,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #**Assignment 1 - Importing, parsing, and querying data in the wild**
+**All assignment questions one through five can be found at the end of the
+workflow and will reference particular chunks and/or code lines should it be needed.**
 
 
+______________________________________________________________________________
 ## 1. Loading Things: \
 
 #### 1.1: Loading Packages \
@@ -31,14 +34,12 @@ data given.
 library(googlesheets4)
 library(tidyverse)     #Package to process our data, stylized formation
 library(dplyr)         #Sub tidyverse package for data manipulation 
-library(vroom)
 library(magrittr)      #Package to help coding sequencing 
 library(janitor)       #Package for 'clean_names()' function
 library(readr)         #Package to help parse rectangular data
 library(stringr)       #Package to deal w/ NAs and manipulate cols/data
 library(lubridate)     #Package for date processing and plotting
 library(broom.mixed)   #Package to clean diverse model outputs
-library(fedmatch)
 #Aesthetics:
 library(ggplot2)       #Package to generate plotted data
 library(patchwork)     #Package for extensive plotted data configuration 
@@ -47,14 +48,8 @@ library(RColorBrewer)  #Package to colour plots
 library(viridisLite)   #Package to colour plots
 
 library(here)          #Package to set working directory via `.Rproj`
-#getwd()               #Function to affirm working directory 
+getwd()               #Function to affirm working directory 
 ```
-
-
-________________________________________________________________________________
-
-### Question 1: \
-*Read the data in and clean it for analysis, using the readr package functions for reading and parsing data. Provide a few comments on the types of earthquakes and the sources of information of the earthquakes.*[5 marks]
 
 
 #### 1.2: Loading Data \
@@ -71,36 +66,9 @@ print()
 earth=read_sheet("https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml")
 ```
 
-
-
-Okay... soooo. A *lot* of stuff happened, or tried to happen, here. I have removed
-all lines of code which did not end up working out. But relevant thought processes 
-that stuck around: \
-- Working with the time kinda messed with my mind. The format given to us is 
-like so: 1960-01-02T12:21:58.720Z (YYYY-MM-DD Time(military): HH:MM:SSS (TimeZone UTC). But the Zulu UTC time was not in the proper format (ex: - 0800) in order to use 
-`%z` or `%Z` in any date formatting sequences.. which is why I removed that last 
-part of the time column. We are not using the time change for any data analysis
-here, which is why it got cut, but should have been needed we would have had to
-continue figuring that out. 
-
-```{r Loading Data Local 2, include=TRUE}
-countries=read.csv(here("01_raw_data", "countries.csv"))  #load in datasets
-earthquakes=read.csv(here("01_raw_data","earthquakes_5.5_1960-2023.csv")) %>%
-  clean_names() %>%                                  #clean all col headers
-  mutate(time=str_extract(time, "[[:graph:]T[:graph:]]*(?<=[:punct:])")) %>%
-  mutate(time=as.POSIXct("1960-01-02T12:21:58.", format="%Y-%m-%dT%H:%M:%S.", 
-                         tz="UTC")) %>%            #convert from chr to date
-  mutate(country=str_extract(place, "(?<=[:graph:], )[:graph:]*")) %>% 
-  mutate(country=remove.nas=TRUE) %>%
-  arrange(desc(mag)) %>%                  #arrange by highest magnitude first
-  select(time, country, everything()) %>% #reorder dt
-  print()                                #View object created loads in properly 
-```
-Now that the dataset has been manipulated in the way that I want it, here are some observations that I notice: \
-1. 
-
-```{r}
-
+```{r Loading Data Locally 1, include=TRUE}
+countries=read.csv(here("01_raw_data", "countries.csv"))   #load in datasets
+earthquakes=read.csv(here("01_raw_data","earthquakes_5.5_1960-2023.csv")) 
 ```
 
 
@@ -114,5 +82,79 @@ theme_set(theme_juicy())                   #auto-apply as theme for plots
 ```
 
 
+## 2. Manipulating Data:
+#### 2.1: Correcting The Main Dataset:
+
+Okay... soooo. A *lot* of stuff happened or tried to happen here. I have removed
+all lines of code which did not end up working out. But relevant thought processes 
+that stuck around: \
+- Working with the time kinda messed with my mind. The format given to us is 
+like so: 1960-01-02T12:21:58.720Z (YYYY-MM-DD Time(military): HH:MM:SSS (TimeZone UTC). But the Zulu UTC time was not in the proper format (ex: - 0800) in order to use 
+`%z` or `%Z` in any date formatting sequences.. which is why I removed that last 
+part of the time column. We are not using the time change for any data analysis
+here, which is why it got cut, but should have been needed we would have had to
+continue figuring that out. 
+
+```{r Manipulate Data 1, include=TRUE}
+earthquakes=earthquakes %>%                 #overwrite previous dataset version
+  clean_names() %>%                                      #clean all col headers
+  mutate(time=str_extract(time, "[[:graph:]T[:graph:]]*(?<=[:punct:])")) %>%
+  mutate(time=as.POSIXct("1960-01-02T12:21:58.", format="%Y-%m-%dT%H:%M:%S.", 
+                         tz="UTC")) %>%               #convert from chr to date
+ # mutate(date=str_extract(time, format="%Y-%m-%d %H%M%S")) %>%
+  #mutate(date=str_extract(time, "%Y-%m-%d*(?<=[:graph:])")) %>%
+  mutate(country=str_extract(place, "(?<=[:graph:], )[:graph:]*")) %>% #get country
+  select(time, date, everything(), -place, -nst, -gap,-dmin, -rms, -net, -id, 
+         -updated, -mag_nst, -status, -location_source, -mag_source) %>%#remove cols
+  drop_na(country, mag) %>%              #remove all rows w/o country or mag listed
+  print()                                #View object created appears properly 
+```
 
 
+
+
+We only want data that falls within the 1990s, so we will create an interval 
+within which we will search for:
+```{r Manipulate Data, include=TRUE}
+earthquakes_90s <-                              #assigning interval values
+  interval(start="1990-01-01", end="1999-12-31")
+  
+  #interval(ymd_hms("1990-01-01 00:00:00"), ymd_hms("1999-12-31 23:59:59"))#1st day of 90s to last day of the 90s
+```
+
+
+#### 2.1: Creating a Subdataset:
+
+We are later required to figure out whether North or South America experiences 
+more earthquakes within the 1990s. Thus, we are going create a sub-verion of 
+the main dataset with only years from the 90s. 
+
+between(date_column, as.Date('2022-01-20'), as.Date('2022-02-20')))
+```{r}
+earthquakes_90s_filtered=earthquakes %>%
+  filter(time>=as.POSIXct("1990-01-1")& time<=as.POSIXct("1999-12-31")) %>%
+print()
+```
+```{r}
+earthquakes %>%
+  filter(country=="China") %>%
+print()
+```
+
+
+
+  filter(month %within% m_o_season)
+
+
+```{r Manipulate Data 2, include=TRUE}
+
+earthquakes_merged=earthquakes %>%                     #create new dataframe
+  filter
+  left_join(countries, earthquakes, by="country") %>%    #merge datasets
+#  arrange(desc(mag)) %>%                  #arrange by highest magnitude first
+ # select(time, country, everything()) %>% #reorder dt columns to what we want
+print()                                   #View object created appears properly 
+```
+
+#R gets confused sometimes and cannot register new revisions quick enough  
+#via pipe, so these code chunks must be separated to ensure that they work.
