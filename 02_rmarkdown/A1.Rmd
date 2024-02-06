@@ -1,11 +1,11 @@
 ---
-title: 'GG606: Assignment 1'
+title: 'GG606: Assignment 1 Importing, parsing, and querying data in the wild'
 author: "Julia K"
 date: "2024-02-05"
 output: 
   html_document:
     toc: true
-    toc_depth: #########################
+    toc_depth: 3
     toc_float: 
       collapsed: false
       smooth_scroll: false 
@@ -18,18 +18,13 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#**Assignment 1 - Importing, parsing, and querying data in the wild**
-**All assignment questions one through five can be found at the end of the
-workflow and will reference particular chunks and/or code lines should it be needed.**
-
-
-______________________________________________________________________________
+________________________________________________________________________________
 ## 1. Loading Things: \
 
-#### 1.1: Loading Packages \
+##### 1.1: Loading Packages \
 Load in any and all packages required to manipulate, transform, and illustrate 
-data given. 
-```{r Loading Packages, include=TRUE}
+the data given. 
+```{r Loading Packages, include=FALSE}
 #Functional:
 library(googlesheets4)
 library(tidyverse)     #Package to process our data, stylized formation
@@ -45,116 +40,368 @@ library(ggplot2)       #Package to generate plotted data
 library(patchwork)     #Package for extensive plotted data configuration 
 library(ggthemes)      #Package for extra themes, scales, and geoms for plotted data
 library(RColorBrewer)  #Package to colour plots
-library(viridisLite)   #Package to colour plots
+library(viridis)       #Package to colour plots
 
 library(here)          #Package to set working directory via `.Rproj`
-getwd()               #Function to affirm working directory 
+getwd()                #Function to affirm working directory 
 ```
 
-
-#### 1.2: Loading Data \
-The `.csv` data file given has been loaded onto a Google platform and published as
-a URL in order to (hopefully) grant universal user access. However, this becomes defeatist when loading the following code chunk, which requires a redetermined
-plot theme function. To ignore the error message, remove code chunk two. 
-
-```{r Loading Data, inlcude=TRUE}
-earthquake=read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml?gid=1389465964&single=true", col_names=FALSE) %>%
-print()
-```
-
-```{r}
-earth=read_sheet("https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml")
-```
-
+##### 1.2: Loading Data \
 ```{r Loading Data Locally 1, include=TRUE}
 countries=read.csv(here("01_raw_data", "countries.csv"))   #load in datasets
 earthquakes=read.csv(here("01_raw_data","earthquakes_5.5_1960-2023.csv")) 
 ```
 
-
-#### 1.3: Loading Select Functions \
-
-Lastly... We will be applying a pre-determined function that has previously been generated. Here, the function is titled theme_juicy.R, and will be used for any 
-and all figures generated.
-```{r Loading Functions, include=TRUE}
-source(here("functions", "theme_juicy.R")) #load from 'functions' folder
-theme_set(theme_juicy())                   #auto-apply as theme for plots
-```
-
-
-## 2. Manipulating Data:
-#### 2.1: Correcting The Main Dataset:
+________________________________________________________________________________
+## 2. Manipulating Data: \
+##### 2.1: Correcting The Main Dataset: \
 
 Okay... soooo. A *lot* of stuff happened or tried to happen here. I have removed
 all lines of code which did not end up working out. But relevant thought processes 
 that stuck around: \
-- Working with the time kinda messed with my mind. The format given to us is 
+*Working with the time kinda messed with my mind. The format given to us is 
 like so: 1960-01-02T12:21:58.720Z (YYYY-MM-DD Time(military): HH:MM:SSS (TimeZone UTC). But the Zulu UTC time was not in the proper format (ex: - 0800) in order to use 
 `%z` or `%Z` in any date formatting sequences.. which is why I removed that last 
 part of the time column. We are not using the time change for any data analysis
-here, which is why it got cut, but should have been needed we would have had to
-continue figuring that out. 
-
+here, which is why it got cut, but should it have been needed we would have had to
+continue figuring that out. \
+* Another failed attempt: `mutate(time=as.POSIXct(time, format="%Y-%m-%dT%H:%M:%S.", tz="UTC"))` this was because I specified `time="1960-01-02T12:21:58"` in line 106 which applied this date to alll the data... (why filtering returned 0 rows)- went and looked at total data rows from `.csv` (matched) but then how many *specifically* were only from 1960 (527) + could not filter dates in environment. \
+*Here `week_start` doesn't really matter because it is registering by character not 
+numeric (ex: 1, 2, 3, etc.) and correctly identifies the weekday (changing or removing this piece of code does not have an impact on output).
 ```{r Manipulate Data 1, include=TRUE}
-earthquakes=earthquakes %>%                 #overwrite previous dataset version
-  clean_names() %>%                                      #clean all col headers
+earthquakes=earthquakes %>%                     #overwrite previous dataset version
+  clean_names() %>%                                          #clean all col headers
   mutate(time=str_extract(time, "[[:graph:]T[:graph:]]*(?<=[:punct:])")) %>%
-  mutate(time=as.POSIXct("1960-01-02T12:21:58.", format="%Y-%m-%dT%H:%M:%S.", 
-                         tz="UTC")) %>%               #convert from chr to date
- # mutate(date=str_extract(time, format="%Y-%m-%d %H%M%S")) %>%
-  #mutate(date=str_extract(time, "%Y-%m-%d*(?<=[:graph:])")) %>%
+  mutate(time=as.POSIXct(time, format="%Y-%m-%dT%H:%M:%S.", 
+                         tz="UTC")) %>%                   #convert from chr to date
+  mutate(date=as.Date(as.POSIXct(time, format="%Y-%m-%d %H:%M:%S", 
+                         tz="UTC"))) %>%                      #convert to date type
+  mutate(dayofweek=wday(ymd(date), label=TRUE, abbr=FALSE)) %>%            #Mon (1)
   mutate(country=str_extract(place, "(?<=[:graph:], )[:graph:]*")) %>% #get country
-  select(time, date, everything(), -place, -nst, -gap,-dmin, -rms, -net, -id, 
-         -updated, -mag_nst, -status, -location_source, -mag_source) %>%#remove cols
-  drop_na(country, mag) %>%              #remove all rows w/o country or mag listed
-  print()                                #View object created appears properly 
+  mutate(year=year(date)) %>%                               #column solely for year
+  group_by(year) %>%                          #only perform next calc w/ group var
+  mutate(avg_mag=mean(mag, na.rm=TRUE)) %>%                    #yearly mag average 
+  select(time, date, year, country, dayofweek, mag, everything(), -nst, -gap,-dmin, 
+       -rms, -net, -id, -updated, -mag_nst, -status, -location_source, -mag_source) %>%
+print()                                      #View object created appears properly 
 ```
 
 
-
-
-We only want data that falls within the 1990s, so we will create an interval 
-within which we will search for:
-```{r Manipulate Data, include=TRUE}
-earthquakes_90s <-                              #assigning interval values
-  interval(start="1990-01-01", end="1999-12-31")
-  
-  #interval(ymd_hms("1990-01-01 00:00:00"), ymd_hms("1999-12-31 23:59:59"))#1st day of 90s to last day of the 90s
-```
-
-
-#### 2.1: Creating a Subdataset:
-
+##### 2.2: Creating a Subdataset: \
 We are later required to figure out whether North or South America experiences 
-more earthquakes within the 1990s. Thus, we are going create a sub-verion of 
-the main dataset with only years from the 90s. 
-
-between(date_column, as.Date('2022-01-20'), as.Date('2022-02-20')))
-```{r}
-earthquakes_90s_filtered=earthquakes %>%
-  filter(time>=as.POSIXct("1990-01-1")& time<=as.POSIXct("1999-12-31")) %>%
-print()
-```
-```{r}
-earthquakes %>%
-  filter(country=="China") %>%
-print()
-```
+more earthquakes within the 1990s. Thus, we are going create a sub-version of 
+the main data set with only years from the 90s, followed by whether each location is in North or South America. \
 
 
-
-  filter(month %within% m_o_season)
-
-
+No need to mutate here because we are overriding the current `date` column 
+with our desired dates, and we are creating a new data frame, so these changes are
+'automatically' applied to the object. \
 ```{r Manipulate Data 2, include=TRUE}
-
-earthquakes_merged=earthquakes %>%                     #create new dataframe
-  filter
-  left_join(countries, earthquakes, by="country") %>%    #merge datasets
-#  arrange(desc(mag)) %>%                  #arrange by highest magnitude first
- # select(time, country, everything()) %>% #reorder dt columns to what we want
-print()                                   #View object created appears properly 
+earthquakes_90s_filtered=earthquakes %>%                          #create new df
+  filter(between(date, as.Date("1990-01-01"),              #filter all 90s dates
+                               as.Date("1999-12-31"))) %>%
+  drop_na(country, mag) %>%           #remove all rows w/o country or mag listed
+  mutate(year=year(date)) %>%
+  select(time, date, year, country, everything(), -place) %>%            #arrange cols
+print()                                    #View object created appears properly 
 ```
 
-#R gets confused sometimes and cannot register new revisions quick enough  
-#via pipe, so these code chunks must be separated to ensure that they work.
+We only want to look at earthquakes from the 90s that we **know** are from either
+North or South America. When we merge these two data frames we loose some earthquake
+data that comes from the 90s around the world (we know these countries too, because
+we removed any place that did *not* have a country) but they are of no use to us
+because we only want those with the affiliated continents. \
+
+*Side note: here, `left_join()` is inappropriate because it is trying to create 'matches' for all of the existing data in the left table (`earthquakes_90s_filtered`), rather than only keeping rows which match the common column from the right table (`countries`). So `inner_merge()` only keeps rows that match data from both.* 
+```{r Manipulate Data 2 cnt, include=TRUE}
+#R is being moody, so we have to break up the code chunks in order for it to 
+#register previously defined objects, also because I am switching languages to 
+#get want I want done, which means we can't just 'pipe' it on.
+earthquakes_90s_filtered=                                #overwrite previous df
+ inner_merged <- 
+  merge(earthquakes_90s_filtered, countries, by="country") %>%  #merge data sets
+  select(time, date, country, continent, everything()) %>%      #reorder cols
+print()                                  #View object created appears properly
+```
+
+**Q1: Read the data in and clean it for analysis, using the readr package functions for reading and parsing data. Provide a few comments on the types of earthquakes and the sources of information of the earthquakes. [5 marks]** \
+*Please see lines and code chunk above for reading, parsing, and manipulating data.  
+*Magnitudes 6.81 and above appear to be solely, related to earthquakes, with the 
+exception of two nuclear explosions of higher magnitudes (6.90 and 6.80). \
+*The most common magnitude is 5.50 (earthquake). Second highest earthquake magnitude was in Alaska (9.2). A lot of these high places seem to have like, mountains. \
+*Most of this information appears to come from only a few main sources: iscgem, us, hrv, and gcmt (Global Centroid Moment Tensor). I could not find what the other organizations were... maybe makes sense considering they were the major contenders from the 60s etc.?
+
+```{r Quick Code: Q1, include=FALSE}
+earthquakes %>%
+  group_by(mag, type, country) %>%
+  count() %>%
+  arrange(desc(mag)) %>%
+print()  
+```
+
+________________________________________________________________________________
+## 3. Producing Figures: :framed_picture: \
+
+#### 3.1: Question 2 \
+**Q2: Did more earthquakes happen on weekends or weekdays? Include a figure [5 marks]** \
+* The most common day of the week for earthquakes to occur was a **Wednesday** (n=4220), followed by **Saturday** (n=4210). 
+*Number of earthquakes on weekends: 8284 (Saturdays=4210 + Sundays=4074), number of earthquakes on weekdays: 20551 (Mondays=4072 + Tuesdays=4026 + etc.). So there have been more earthquakes on M-F weekdays. \
+
+
+*Side note: thoughts on this section... I could not get `mutate()` or `mutate_if()` cases to work here because despite correctly transforming the `dayofweek` column class type from logical to character, it would not be able to mutate on a logical class type. Might this be because of background number affiliated with names (ex: Monday=1)?* \
+*`weekend_ls <- list("Saturday", "Sunday")` and `weekday_ls <- list("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")` for `mutate(weekend=filter(dayofweek==weekend_ls))`
+*`mutate_if(dayofweek, is.logical(weekend=filter(dayofweek %in% c("Saturday", "Sunday"))), as.character)`
+
+```{r Quick Code: Q2, include=FALSE}
+#Start and run this code if we wanted dates too (ex. yearly weekend vs. weekday)
+earthquakes_weekdays=earthquakes %>%                         #create new object
+  mutate(dayofweek=as.character(dayofweek)) %>%              #change class type
+print()
+```
+
+```{r Quick Code: Q2 cont, include=TRUE}
+#code lines to determine most common appearance of earthquakes (=n observations)
+#We for sure know this is true because ALL earthquakes observed have affiliated 
+#dates with them that we converted to weekdays... thus n=observed earthquakes
+#mutate(weeksum=count(dayofweek)) %>% couldn't figure out from code above how to  
+earthquakes_weekday_sum=earthquakes %>%                     #create new object
+  count(dayofweek) %>%
+  mutate(weekend=case_when(dayofweek %in% c("Saturday", "Sunday") 
+                           ~TRUE, TRUE ~FALSE)) %>% 
+  mutate(weekday=case_when(dayofweek %in% c("Monday", "Tuesday", "Wednesday",   
+                                        "Thursday", "Friday") ~TRUE, TRUE ~FALSE, )) %>%
+  mutate(weekend=case_when(
+          weekend=="TRUE" ~ "Weekend",)) %>%
+  mutate(weekday=case_when(
+          weekday=="TRUE" ~ "Weekday")) %>%
+  unite(week_type, weekend, weekday, na.rm=TRUE) %>%
+print()
+```
+
+```{r Q2, figure, include=TRUE}
+weekday_order=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+weekend_order=c("Saturday", "Sunday")
+
+weekday_figure=earthquakes_weekday_sum %>%
+  ggplot() +
+  geom_col(aes(x=factor(week_type), y=n, fill=factor(dayofweek))) +
+ 
+  scale_fill_brewer(name="Number of earthquakes", palette="Greens") +
+  
+  theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                colour = "white"), 
+      panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "white")) +
+  theme_bw() +
+  theme(legend.position="right") +             #Select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
+
+labs(title="Total Number of Continental Earthquakes Observed (1960-2023)") +
+  theme(plot.title=element_text(hjust=0)) +
+  labs(x=expression(atop("Day of The Week")),
+     y=expression("Number of Earthquakes Observed"))
+
+print(weekday_figure)
+```
+*make geom_stacked with M-F in order of highest to lowest? 
+
+
+
+```{r Q2, figure, include=TRUE}
+weekday_order=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+weekend_order=c("Saturday", "Sunday")
+
+weekday_figure=earthquakes_weekday_sum %>%
+  ggplot() +
+  geom_col(aes(x=factor(week_type), y=n, fill=factor(dayofweek))) +
+ 
+  scale_fill_brewer(name="Number of earthquakes", palette="Greens") +
+  
+  theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                colour = "white"), 
+      panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "white")) +
+
+  theme(legend.position="right") +             #Select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
+
+labs(title="Total Number of Continental Earthquakes Observed (1960-2023)") +
+  theme(plot.title=element_text(hjust=0)) +
+  labs(x=expression(atop("Day of The Week")),
+     y=expression("Number of Earthquakes Observed"))
+
+print(weekday_figure)
+```
+
+#### 3: Question 3  \
+**Has there been any change in the frequency of earthquakes? Include a figure [5 marks]**
+*
+
+
+
+
+
+
+#### 3: Question 4  \
+**Where were there more earthquakes in the 1990s, South America or North America? Include a figure [5 marks]** \
+*There were more earthquakes in South America (344) than North America throughout
+the 1990s (1990-1999).
+
+```{r}
+earthquakes_90s_filtered_sum=earthquakes_90s_filtered %>%
+  group_by(continent, year, country) %>%
+  count() %>%
+print()
+```
+
+```{r}
+earthquakes_90s_figure=earthquakes_90s_filtered_sum %>%
+  ggplot() +
+  geom_bar(aes(fill=factor(year), x=continent, y=n), position="dodge", stat= 
+             "identity", width=0.75) +
+#Edit the scales colour and aesthetics:
+  scale_fill_viridis(discrete=TRUE, option="mako") +
+#Editing legend:
+  theme_bw() +
+  theme(legend.position="right") +            #Select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
+  theme(legend.title=element_blank()) +             #Remove legend title
+#Generating label titles: 
+  labs(title="Change in Earthquake Frequency (1990-1999)", #Main caption
+       subtitle="Sum of total earthquake types over time 
+       in North and South America",                       #Sub-caption
+       x=expression(atop("Continent")),                         #x-axis title
+       y=expression("Number of Earthquakes Observed"))     #y-axis-title
+
+print(earthquakes_90s_figure)
+```
+
+
+
+
+
+
+
+
+
+
+
+#### 3: Question 5 \
+**Q5: Comment on changes in the data with time: a) earthquakes per year, b) type of earthquakes, and c) magnitude resolution. Include a figure [5 marks]** \
+a.) It appears that on a global average earthquakes overall are steadily increasing
+b.) Naturally occurring earthquakes (to our knowledge) are consistently the most common type recorded within this data frame. We begin to see an increase in nuclear explosions resulting in earthquakes between approximately 1975 to the late 1980s then decrease again. This makes sense, as the nuclear arms race apart of the Cold War was ongoing at this time, ending in 1991. Other noted explosions are not reported very well (n=5).
+c.) 
+
+```{r}
+earthquakes_frequency_sum=earthquakes %>%
+  group_by(year, type) %>%
+  count() %>%
+print()
+```
+add chunk headers here
+```{r}
+earthquakes_frequency_sum2=earthquakes %>%
+  group_by(year) %>%
+  count() %>%
+ left_join(earthquakes_frequency_sum, earthquakes_frequency_sum, by="year") %>%
+#Here, n.x=total observed earthquakes per year // n.y=total earthquakes per type
+  rename(total_quakes=n.x) %>%
+  rename(total_quakes_per_type=n.y) %>%
+  mutate(type=case_when(
+          type=="earthquake" ~ "Earthquake",
+          type=="nuclear explosion" ~ "Nuclear Explosion",
+          type=="explosion" ~ "Explosion",
+          type=="volcanic eruption" ~ "Volcanic Eruption")) %>%
+#left_join(earthquakes_frequency_sum, earthquakes, by="year") %>%
+print()
+```
+*Side note: notable comments and problems.. \
+```{r Q5 figure 1 include=TRUE}
+#Generate plot:
+frequency_figure=earthquakes_frequency_sum2 %>%
+  ggplot() +
+#  facet_wrap(vars(type), ncol=4, scales="free") + #Create a grid w/ 4 columns 
+  geom_line(aes(x=year, y=total_quakes_per_type, colour=type, fill=type), alpha=0.75)+
+  geom_line(aes(x=year, y=total_quakes_per_type, colour=type, fill=type), alpha=0.75)+
+  #  geom_point(aes(x=year, y=total_quakes_per_type, colour=type, fill=type), alpha=.5)+
+    xlim(1960,2023) + 
+    ylim(0,720) +
+#Edit the scales colour and aesthetics:
+  scale_colour_manual(values=c("#BBD3FB","#ffbf00","#5985D0","#ff8080"),
+                      labels=c("Earthquake","Explosion","Nuclear Explosion",
+                               "Volcanic Eruption")) +
+#  scale_fill_manual(values=c("#BBD3FB","#ffbf00","#5985D0", "#ffffff"),
+#                      labels=c("Earthquake","Explosion","Nuclear Explosion",
+#                               "Volcanic Eruption")) +
+#Editing legend:
+  theme_bw() +
+  theme(legend.position="right") +            #Select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
+  theme(legend.title=element_blank()) +             #Remove legend title
+#Generating label titles: 
+  labs(title="Change in Earthquake Frequency (1960-2023)", #Main caption
+       subtitle="Based on reported major earthquake types", #Sub-caption
+       x=expression(atop("Year")),                         #x-axis title
+       y=expression("Number of Earthquakes Observed"))     #y-axis-title
+
+print(frequency_figure)
+```
+```{r}
+average_mag_figure=earthquakes %>%
+  ggplot() +
+  geom_line(aes(x=year, y=avg_mag, colour=avg_mag, fill=avg_mag), alpha=0.75)+
+  geom_point(aes(x=year, y=avg_mag, fill=factor(avg_mag), alpha=0.5))+
+    xlim(1960,2023) + 
+    ylim(0,720) +
+#Edit the scales colour and aesthetics:
+  scale_colour_manual(values=c("#ff9f80"),
+                      labels=c("Average Magnitude")) +
+  scale_fill_manual(values=c("#ff9f80"),                 
+                    labels=c("Average Magnitude")) +
+#Editing legend:
+  theme_bw() +
+  theme(legend.position="right") +            #Select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
+  theme(legend.title=element_blank()) +             #Remove legend title
+#Generating label titles: 
+  labs(title="Change in Earthquake Frequency (1960-2023)", #Main caption
+       subtitle="Based on reported major earthquake types", #Sub-caption
+       x=expression(atop("Year")),                         #x-axis title
+       y=expression("Number of Earthquakes Observed"))     #y-axis-title
+
+print(average_mag_figure)
+```
+
+* have magnitiude spilt with this guy
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

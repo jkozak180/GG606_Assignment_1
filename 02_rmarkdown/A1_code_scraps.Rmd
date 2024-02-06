@@ -1,0 +1,63 @@
+---
+title: "A1_code_scraps"
+author: "Julia K"
+date: "2024-02-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+:framed_picture:
+
+The `.csv` data file given has been loaded onto a Google platform and published as
+a URL in order to (hopefully) grant universal user access. However, this becomes defeatist when loading the following code chunk, which requires a redetermined
+plot theme function. To ignore the error message, remove code chunk two. 
+
+```{r Loading Data, inlcude=TRUE}
+earthquake=read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml?gid=1389465964&single=true", col_names=FALSE) %>%
+print()
+```
+
+```{r}
+earth=read_sheet("https://docs.google.com/spreadsheets/d/e/2PACX-1vREAF1nhXX9kzvysMZQqlRIM6XPnlrjDtlmhXb8OsRcHuu2S3SIpI-xQnieAmIlQWfAeMP-IklnCZhl/pubhtml")
+```
+
+##### 1.3: Loading Select Functions \
+Lastly... We will be applying a pre-determined function that has previously been generated. Here, the function is titled theme_juicy.R, and will be used for any 
+and all figures generated.
+```{r Loading Functions, include=TRUE}
+source(here("functions", "theme_juicy.R")) #load from 'functions' folder
+theme_set(theme_juicy())                   #auto-apply as theme for plots
+```
+
+*Side note: I do not know why I could not get the filter `%within%` function to work here after generating an interval...is it because it is an inappropriate use? But I don't see how?* \
+```{r Failed Interval Example, include=TRUE}
+#We only want data that falls within the 1990s, so we will create an interval 
+#within which we will search for:
+earthquakes_90s <-                               #assigning interval values
+  interval(ymd("1990-01-01"), ymd("1999-12-31")) #1st day of 90s to last day of the 90s
+
+#mutate(nineties=filter(date %within% earthquakes_90s))
+```
+
+
+#type=c("Earthquake", "Explosion", "Nuclear Explosion", "Volcanic Eruption")
+
+-________________ extra in case
+
+```{r Manipulate Data 1, include=TRUE}
+earthquakes=earthquakes %>%                 #overwrite previous dataset version
+  clean_names() %>%                                      #clean all col headers
+  mutate(time=str_extract(time, "[[:graph:]T[:graph:]]*(?<=[:punct:])")) %>%
+  mutate(time=as.POSIXct(time, format="%Y-%m-%dT%H:%M:%S.", 
+                         tz="UTC")) %>%               #convert from chr to date
+  mutate(date=as.Date(as.POSIXct(time, format="%Y-%m-%d %H:%M:%S", 
+                         tz="UTC"))) %>%             #convert to date type
+  mutate(country=str_extract(place, "(?<=[:graph:], )[:graph:]*")) %>% #get country
+  select(time, date, everything(), -place, -nst, -gap,-dmin, -rms, -net, -id, 
+         -updated, -mag_nst, -status, -location_source, -mag_source) %>%#remove cols
+  drop_na(country, mag) %>%              #remove all rows w/o country or mag listed
+  print()                                #View object created appears properly 
+```
