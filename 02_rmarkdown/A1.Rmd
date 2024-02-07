@@ -5,7 +5,7 @@ date: "2024-02-05"
 output: 
   html_document:
     toc: true
-    toc_depth: 3
+    toc_depth: 4
     toc_float: 
       collapsed: false
       smooth_scroll: false 
@@ -24,9 +24,8 @@ ________________________________________________________________________________
 ##### 1.1: Loading Packages \
 Load in any and all packages required to manipulate, transform, and illustrate 
 the data given. 
-```{r Loading Packages, include=FALSE}
+```{r Loading Packages, include=TRUE}
 #Functional:
-library(googlesheets4)
 library(tidyverse)     #Package to process our data, stylized formation
 library(dplyr)         #Sub tidyverse package for data manipulation 
 library(magrittr)      #Package to help coding sequencing 
@@ -59,15 +58,17 @@ ________________________________________________________________________________
 Okay... soooo. A *lot* of stuff happened or tried to happen here. I have removed
 all lines of code which did not end up working out. But relevant thought processes 
 that stuck around: \
-*Working with the time kinda messed with my mind. The format given to us is 
+
+- Working with the time kinda messed with my mind. The format given to us is 
 like so: 1960-01-02T12:21:58.720Z (YYYY-MM-DD Time(military): HH:MM:SSS (TimeZone UTC). But the Zulu UTC time was not in the proper format (ex: - 0800) in order to use 
 `%z` or `%Z` in any date formatting sequences.. which is why I removed that last 
 part of the time column. We are not using the time change for any data analysis
 here, which is why it got cut, but should it have been needed we would have had to
 continue figuring that out. \
-* Another failed attempt: `mutate(time=as.POSIXct(time, format="%Y-%m-%dT%H:%M:%S.", tz="UTC"))` this was because I specified `time="1960-01-02T12:21:58"` in line 106 which applied this date to alll the data... (why filtering returned 0 rows)- went and looked at total data rows from `.csv` (matched) but then how many *specifically* were only from 1960 (527) + could not filter dates in environment. \
-*Here `week_start` doesn't really matter because it is registering by character not 
+- Another failed attempt: `mutate(time=as.POSIXct(time, format="%Y-%m-%dT%H:%M:%S.", tz="UTC"))` this was because I specified `time="1960-01-02T12:21:58"` in line 106 which applied this date to alll the data... (why filtering returned 0 rows)- went and looked at total data rows from `.csv` (matched) but then how many *specifically* were only from 1960 (527) + could not filter dates in environment. \
+- Here `week_start` doesn't really matter because it is registering by character not 
 numeric (ex: 1, 2, 3, etc.) and correctly identifies the weekday (changing or removing this piece of code does not have an impact on output).
+
 ```{r Manipulate Data 1, include=TRUE}
 earthquakes=earthquakes %>%                     #overwrite previous dataset version
   clean_names() %>%                                          #clean all col headers
@@ -78,9 +79,11 @@ earthquakes=earthquakes %>%                     #overwrite previous dataset vers
                          tz="UTC"))) %>%                      #convert to date type
   mutate(dayofweek=wday(ymd(date), label=TRUE, abbr=FALSE)) %>%            #Mon (1)
   mutate(country=str_extract(place, "(?<=[:graph:], )[:graph:]*")) %>% #get country
-  mutate(year=year(date)) %>%                               #column solely for year
+  mutate(year=year(date)) %>%                               #col solely for year
+  mutate(month=month(date)) %>%                             #col solely for month
   group_by(year) %>%                          #only perform next calc w/ group var
   mutate(avg_mag=mean(mag, na.rm=TRUE)) %>%                    #yearly mag average 
+  mutate(avg_mag_err=round(mean(mag_error, na.rm=TRUE), 2)) %>%
   select(time, date, year, country, dayofweek, mag, everything(), -nst, -gap,-dmin, 
        -rms, -net, -id, -updated, -mag_nst, -status, -location_source, -mag_source) %>%
 print()                                      #View object created appears properly 
@@ -100,7 +103,7 @@ with our desired dates, and we are creating a new data frame, so these changes a
 earthquakes_90s_filtered=earthquakes %>%                          #create new df
   filter(between(date, as.Date("1990-01-01"),              #filter all 90s dates
                                as.Date("1999-12-31"))) %>%
-  drop_na(country, mag) %>%           #remove all rows w/o country or mag listed
+  drop_na(country, mag) %>%               #remove all rows w/o country or mag listed
   mutate(year=year(date)) %>%
   select(time, date, year, country, everything(), -place) %>%            #arrange cols
 print()                                    #View object created appears properly 
@@ -110,7 +113,7 @@ We only want to look at earthquakes from the 90s that we **know** are from eithe
 North or South America. When we merge these two data frames we loose some earthquake
 data that comes from the 90s around the world (we know these countries too, because
 we removed any place that did *not* have a country) but they are of no use to us
-because we only want those with the affiliated continents. \
+because we only want those with the affiliated continents. Here, we affirm that known countries affilated with each continent are being studied, rather than by latitude alone (which we otherwise could have done to have kept more data). Alas. \
 
 *Side note: here, `left_join()` is inappropriate because it is trying to create 'matches' for all of the existing data in the left table (`earthquakes_90s_filtered`), rather than only keeping rows which match the common column from the right table (`countries`). So `inner_merge()` only keeps rows that match data from both.* 
 ```{r Manipulate Data 2 cnt, include=TRUE}
@@ -121,143 +124,258 @@ earthquakes_90s_filtered=                                #overwrite previous df
  inner_merged <- 
   merge(earthquakes_90s_filtered, countries, by="country") %>%  #merge data sets
   select(time, date, country, continent, everything()) %>%      #reorder cols
-print()                                  #View object created appears properly
+print()                                  #view object created appears properly
 ```
 
 **Q1: Read the data in and clean it for analysis, using the readr package functions for reading and parsing data. Provide a few comments on the types of earthquakes and the sources of information of the earthquakes. [5 marks]** \
-*Please see lines and code chunk above for reading, parsing, and manipulating data.  
-*Magnitudes 6.81 and above appear to be solely, related to earthquakes, with the 
+
+- Please see lines and code chunk above for reading, parsing, and manipulating data.  
+- Magnitudes 6.81 and above appear to be solely related to earthquakes, with the 
 exception of two nuclear explosions of higher magnitudes (6.90 and 6.80). \
-*The most common magnitude is 5.50 (earthquake). Second highest earthquake magnitude was in Alaska (9.2). A lot of these high places seem to have like, mountains. \
-*Most of this information appears to come from only a few main sources: iscgem, us, hrv, and gcmt (Global Centroid Moment Tensor). I could not find what the other organizations were... maybe makes sense considering they were the major contenders from the 60s etc.?
+* The most common magnitude is 5.50 (earthquake). Second highest earthquake magnitude (first country unknown) was in Alaska (9.2). A lot of these high places seem to have like, mountains. \
+- Most of this information appears to come from only a few main sources: iscgem, us, hrv, and gcmt (Global Centroid Moment Tensor). I could not find what the other organizations were... maybe makes sense considering they were the major contenders from the 60s etc.?
 
 ```{r Quick Code: Q1, include=FALSE}
 earthquakes %>%
   group_by(mag, type, country) %>%
   count() %>%
   arrange(desc(mag)) %>%
-print()  
+print()  #view object created appears properly
 ```
 
 ________________________________________________________________________________
-## 3. Producing Figures: :framed_picture: \
+## 3. Producing Figures: \
 
 #### 3.1: Question 2 \
-**Q2: Did more earthquakes happen on weekends or weekdays? Include a figure [5 marks]** \
-* The most common day of the week for earthquakes to occur was a **Wednesday** (n=4220), followed by **Saturday** (n=4210). 
-*Number of earthquakes on weekends: 8284 (Saturdays=4210 + Sundays=4074), number of earthquakes on weekdays: 20551 (Mondays=4072 + Tuesdays=4026 + etc.). So there have been more earthquakes on M-F weekdays. \
+**Q2: Did more earthquakes happen on weekends or weekdays?                         Include a figure [5 marks]** \
+
+- The most common day of the week for earthquakes to occur was a **Wednesday** (n=4220), followed by **Saturday** (n=4210). \
+- Number of earthquakes on weekends: 8284 (Saturdays=4210 + Sundays=4074), number of earthquakes on weekdays: 20551 (Mondays=4072 + Tuesdays=4026 + etc.). So there have been more earthquakes on M-F weekdays. \
 
 
 *Side note: thoughts on this section... I could not get `mutate()` or `mutate_if()` cases to work here because despite correctly transforming the `dayofweek` column class type from logical to character, it would not be able to mutate on a logical class type. Might this be because of background number affiliated with names (ex: Monday=1)?* \
 *`weekend_ls <- list("Saturday", "Sunday")` and `weekday_ls <- list("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")` for `mutate(weekend=filter(dayofweek==weekend_ls))`
-*`mutate_if(dayofweek, is.logical(weekend=filter(dayofweek %in% c("Saturday", "Sunday"))), as.character)`
+*`mutate_if(dayofweek, is.logical(weekend=filter(dayofweek %in% c("Saturday", "Sunday"))), as.character)` to no avail. 
 
-```{r Quick Code: Q2, include=FALSE}
+```{r Quick Code: Q2, include=TRUE}
 #Start and run this code if we wanted dates too (ex. yearly weekend vs. weekday)
-earthquakes_weekdays=earthquakes %>%                         #create new object
+earthquakes_weekdays=earthquakes %>%                         #create new df
   mutate(dayofweek=as.character(dayofweek)) %>%              #change class type
-print()
+print()#view object created appears properly
 ```
+
+
+*Side note: I don't know why those two lines of code from all of my crazy `group_by` functions didn't work... which is why I had to manually override any other function types. Normally I would spend more time to ensure that R can compute it correctly, but I unfortunately do not have the grace of time on my side rn*. \
+`(group_by(week_type_total) %>% #take those 2 distinct values` \
+`mutate(total=sum(week_type_total)) %>% #add them together for all obs (28835))`
 
 ```{r Quick Code: Q2 cont, include=TRUE}
 #code lines to determine most common appearance of earthquakes (=n observations)
 #We for sure know this is true because ALL earthquakes observed have affiliated 
 #dates with them that we converted to weekdays... thus n=observed earthquakes
 #mutate(weeksum=count(dayofweek)) %>% couldn't figure out from code above how to  
-earthquakes_weekday_sum=earthquakes %>%                     #create new object
-  count(dayofweek) %>%
-  mutate(weekend=case_when(dayofweek %in% c("Saturday", "Sunday") 
-                           ~TRUE, TRUE ~FALSE)) %>% 
+earthquakes_weekday_sum=earthquakes %>%             #create new df
+  count(dayofweek) %>%                              #count how many each weekday appears
+  mutate(weekend=case_when(dayofweek %in% c("Saturday", "Sunday")
+                           ~TRUE, TRUE ~FALSE)) %>% #create new cols for type
   mutate(weekday=case_when(dayofweek %in% c("Monday", "Tuesday", "Wednesday",   
                                         "Thursday", "Friday") ~TRUE, TRUE ~FALSE, )) %>%
-  mutate(weekend=case_when(
+  mutate(weekend=case_when(                       #edit TF within cols to what they are
           weekend=="TRUE" ~ "Weekend",)) %>%
   mutate(weekday=case_when(
           weekday=="TRUE" ~ "Weekday")) %>%
-  unite(week_type, weekend, weekday, na.rm=TRUE) %>%
+  unite(week_type, weekend, weekday, na.rm=TRUE) %>% #merge two cols w/ correct type
+#Making data into a percentage: 
+  group_by(week_type) %>%                            #only perform by objects in col
+  mutate(week_type_total=sum(n)) %>%                 #get sum of week/end n all years
+  ungroup() %>%
+  group_by(dayofweek) %>%                            #only perform by objects in col
+  mutate(dayofweek_total=sum(n)) %>%         #get sum of week/end type from all years
+  ungroup() %>%
+  mutate(total=(8284+20551)) %>%
+  mutate(proportion=round((dayofweek_total/(week_type_total))*100,2)) %>% 
+  #out of either a weekday or weekend, how much was each day?
+  mutate(proportion_all=round((week_type_total/(total))*100,2)) %>% 
+  #out of all days observed, how many were weekdays(MF), how many weekends?
+print()                                           #view object created appears properly
+```
+Proportion math for previous data frame `earthquakes_weekday_sum` checks out: week type (weekday/weekend) is 100, and individual weekday or weekend proportions (M/T/W/T/F) checks out too. 
+
+
+So *initially* I have made this stacked bar column to show whether there were more earthquakes on weekdays or weekends, but I found it... slightly less intuitive? I also didn't like the legend starting with Sunday and ending with Saturday. Code to try and think of method to reorder: \
+`weekday_order=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")`
+`weekend_order=c("Saturday", "Sunday")` \
+
+Anyways, hence me going back and playing around with percentages to try and get something else.. which didn't turn out so favourably for me? See Q2 Figure 3 (proportions per day type are out of total weekend/weekday type... not out of total). 
+So the stacked bar seems to at least actually provide the most information. 
+
+```{r Q2 Figure 1, include=TRUE}
+#Generate figure:
+q2fig1=earthquakes_weekday_sum %>%                           #create new object
+  ggplot() +
+  geom_col(aes(x=factor(week_type), y=n, fill=factor(dayofweek))) +
+#  geom_text(aes(x="", y="", label=factor(dayofweek_total)), vjust= -0.5, color="black",                   size=3) +
+#Edit the scales colour and aesthetics: 
+  scale_fill_brewer(name="Number of Earthquakes", palette="Greens") +
+  theme_bw() +
+#Editing the legend: 
+  theme(legend.position="right") +               #select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +               #decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +        #reduce legend margin
+#Generating label titles: 
+  labs(title="Total Number of Continental Earthquakes Observed (1960-2023)") +
+  theme(plot.title=element_text(hjust=0)) +
+  labs(x=expression(atop("Day of The Week")),
+     y=expression("Number of Earthquakes Observed"))
+
+print(q2fig1)                             #view object created appears properly
+```
+
+Failed nested pie chart attempts to include both levels of data. Which type had more? Within them what was the variability like? I hate these figures and don't know what they tell us. Q2 Figure 2 was throwing Q2 Figure 1 into a pie chart hoping that it would retain some of its 'clarity' into a stacked pie formation. It did not. 
+
+```{r Q2 Figure 2, include=TRUE}
+#Generate figure:
+q2fig2=earthquakes_weekday_sum %>%                          #create new object
+  ggplot() +
+  geom_col(aes(x=factor(week_type), y="", fill=factor(dayofweek)), stat="identity") +
+  coord_polar(theta="y") +                                 #make barplot into pie
+#Edit the scales colour and aesthetics: 
+  scale_fill_brewer(name="Number of Earthquakes", palette="Greens") +
+  theme_bw() +
+#Editing legend:  
+  theme(legend.position="right") +                  #select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #reduce legend margin
+#Generating label titles: 
+  labs(title="Total Number of Continental Earthquakes Observed (1960-2023)") +
+  theme(plot.title=element_text(hjust=0.5)) +       #auto un-centers title idk why
+  labs(x=expression(atop("")),
+     y=expression(""))
+
+print(q2fig2)                             #view object created appears properly
+```
+
+```{r Q2 Figure 3, include=TRUE}
+#I couldn't get the pie chart to graph with each column I wanted because there were 
+#too many data values, only wanted the distinct within each column because we have 
+#percentage across all rows. 
+earthquakes_weekday_sumfigure=earthquakes_weekday_sum %>%
+  select(-year, -n) %>%
+  distinct(dayofweek, .keep_all=TRUE)
+
+#Generate plot:
+q2fig3=earthquakes_weekday_sumfigure %>%            #create new object
+  ggplot() +
+  geom_bar(aes(x="", y="", fill=factor(proportion_all), colour=factor(proportion)), 
+           stat="identity") +
+  coord_polar(theta="y") +
+#Edit the scales colour and aesthetics:
+  scale_colour_manual(values=c("#ffffff","#FFFEA3","#FFD57A","#FFB16C","#FF926D", 
+                               "#FF7771", "#FF5261"),
+                      labels=c("Monday","Tuesday","Wednesday","Thursday","Friday", 
+                               "Saturday", "Sunday")) +
+  scale_fill_manual(values=c("#a2836e", "#674d3c"),
+                      labels=c("Weekday", "Weekend")) +
+  theme_bw() +
+#Editing legend:  
+  theme(legend.position="right") +             #select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #reduce legend margin
+#Generating label titles: 
+labs(title="Total Number of Continental Earthquakes Observed (1960-2023)") +
+  theme(plot.title=element_text(hjust=0.5)) +
+  labs(x=expression(atop("")),
+     y=expression(""))
+
+print(q2fig3)                     #View object created appears properly 
+```
+
+
+#### 3.2: Question 3  \
+**Has there been any change in the frequency of earthquakes?                            Include a figure [5 marks]** \
+
+- Yes? Based on plotting the total number of earthquakes (all types) throughout time there appears to be an overall slightly positive trend that they are increasing in appearance/frequency.  
+
+```{r Quick Code: Q3, include=TRUE}
+earthquakes_time=earthquakes %>%                              #create new df
+  group_by(year) %>%
+  count() %>%
+print()                                   #View object created appears properly 
+```
+
+
+```{r Q3 Figure 1, include=TRUE}
+#Generate plot:
+q3fig1=earthquakes_time %>%                                 #create new object
+  ggplot() +
+  geom_smooth(aes(x=year, y=n, colour="trend line"), method= "lm", se=FALSE, 
+              show.legend=FALSE) +                           #lm line overdrawn
+  geom_line(aes(x=year, y=n, colour="data"), alpha=0.75, show.legend=FALSE)+
+    xlim(1960,2023) +                                      #adjust plot x-axis
+    ylim(0,720) +                                          #adjust plot y-axis
+#Edit the scales colour and aesthetics:
+  scale_color_manual(values=c("data"="black", "trend line"="#ffb3b3"),
+                     labels=c()) +                         #no legend labels
+#Editing legend:
+  theme_bw() +
+  theme(legend.position="right") +              #select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +              #decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +       #reduce legend margin
+  theme(legend.title=element_blank()) +                   #remove legend title
+#Generating label titles: 
+  labs(title="Change in Earthquake Frequency (1960-2023)",       #main caption
+       x=expression(atop("Year")),                               #x-axis title
+       y=expression("Total Number of Earthquakes Observed"))     #y-axis-title
+
+print(q3fig1)#View object created appears properly 
+```
+Running a quick linear regression does not seem to return any values (incorrectly run?)
+so I'm not sure if this means such a thing *can't* be run on this type of data (rise n/run year) or if this is most likely a user error. 
+
+
+```{r Quick Code: Q3 cnt, include=TRUE}
+earthquakes_time2=earthquakes %>% 
+  group_by(year, month) %>%
+  count() %>%                                             
 print()
 ```
 
-```{r Q2, figure, include=TRUE}
-weekday_order=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
-weekend_order=c("Saturday", "Sunday")
 
-weekday_figure=earthquakes_weekday_sum %>%
+```{r Q3 Figure 2, include=TRUE}
+#Generate plot:
+q3fig2=earthquakes_time2 %>%                                    #create new df
   ggplot() +
-  geom_col(aes(x=factor(week_type), y=n, fill=factor(dayofweek))) +
- 
-  scale_fill_brewer(name="Number of earthquakes", palette="Greens") +
-  
-  theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid',
-                                colour = "white"), 
-      panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
-                                colour = "white")) +
+  geom_point(aes(x=year, y=n, colour=factor(year)), alpha=0.5, 
+             show.legend=FALSE) +
+  xlim(1960,2023) + 
+  ylim(0,125) +             #2011 03: 228 quakes? Removed outlier from view
+#Edit the scales colour and aesthetics:
   theme_bw() +
-  theme(legend.position="right") +             #Select where the legend rests
-  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
-  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
+  scale_color_viridis(discrete=TRUE, option="plasma") +
+#Generating label titles: 
+  labs(title="Earthquake Frequency By Month (1960-2023)", #main caption
+       x=expression(atop("Year")),                             #x-axis title
+       y=expression("Number of Earthquakes Observed"))         #y-axis-title
 
-labs(title="Total Number of Continental Earthquakes Observed (1960-2023)") +
-  theme(plot.title=element_text(hjust=0)) +
-  labs(x=expression(atop("Day of The Week")),
-     y=expression("Number of Earthquakes Observed"))
-
-print(weekday_figure)
-```
-*make geom_stacked with M-F in order of highest to lowest? 
-
-
-
-```{r Q2, figure, include=TRUE}
-weekday_order=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
-weekend_order=c("Saturday", "Sunday")
-
-weekday_figure=earthquakes_weekday_sum %>%
-  ggplot() +
-  geom_col(aes(x=factor(week_type), y=n, fill=factor(dayofweek))) +
- 
-  scale_fill_brewer(name="Number of earthquakes", palette="Greens") +
-  
-  theme(panel.grid.major = element_line(size = 0.5, linetype = 'solid',
-                                colour = "white"), 
-      panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
-                                colour = "white")) +
-
-  theme(legend.position="right") +             #Select where the legend rests
-  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
-  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
-
-labs(title="Total Number of Continental Earthquakes Observed (1960-2023)") +
-  theme(plot.title=element_text(hjust=0)) +
-  labs(x=expression(atop("Day of The Week")),
-     y=expression("Number of Earthquakes Observed"))
-
-print(weekday_figure)
+print(q3fig2)#View object created appears properly
 ```
 
-#### 3: Question 3  \
-**Has there been any change in the frequency of earthquakes? Include a figure [5 marks]**
-*
 
-
-
-
-
-
-#### 3: Question 4  \
+#### 3.3: Question 4  \
 **Where were there more earthquakes in the 1990s, South America or North America? Include a figure [5 marks]** \
-*There were more earthquakes in South America (344) than North America throughout
-the 1990s (1990-1999).
 
-```{r}
+- There were more earthquakes in South America (n=344) than North America (n=230) throughout the 1990s (1990-1999). This data does not account for i.) unidentified countries and ii.) country locations according to latitude, only those formally recognized as being within North or South America. 
+
+```{r Quick Code: Q4, include=TRUE}
 earthquakes_90s_filtered_sum=earthquakes_90s_filtered %>%
   group_by(continent, year, country) %>%
   count() %>%
-print()
+print()#View object created appears properly 
 ```
 
-```{r}
-earthquakes_90s_figure=earthquakes_90s_filtered_sum %>%
+```{r Q4 Figure, include=TRUE}
+#Generate plot:
+q4fig1=earthquakes_90s_filtered_sum %>%                      #create new object
   ggplot() +
   geom_bar(aes(fill=factor(year), x=continent, y=n), position="dodge", stat= 
              "identity", width=0.75) +
@@ -265,66 +383,56 @@ earthquakes_90s_figure=earthquakes_90s_filtered_sum %>%
   scale_fill_viridis(discrete=TRUE, option="mako") +
 #Editing legend:
   theme_bw() +
-  theme(legend.position="right") +            #Select where the legend rests
-  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
-  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
-  theme(legend.title=element_blank()) +             #Remove legend title
+  theme(legend.position="right") +            #select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +           #decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +    #reduce legend margin
+  theme(legend.title=element_blank()) +                #remove legend title
 #Generating label titles: 
-  labs(title="Change in Earthquake Frequency (1990-1999)", #Main caption
-       subtitle="Sum of total earthquake types over time 
-       in North and South America",                       #Sub-caption
-       x=expression(atop("Continent")),                         #x-axis title
-       y=expression("Number of Earthquakes Observed"))     #y-axis-title
+  labs(title="Change in Earthquake Frequency (1990-1999)", #main caption
+       subtitle="Sum of total earthquake types over time in North and South America",   
+       x=expression(atop("Continent")),                       #x-axis title
+       y=expression("Number of Earthquakes Observed"))        #y-axis-title
 
-print(earthquakes_90s_figure)
+print(q4fig1)                             #View object created appears properly 
 ```
 
 
-
-
-
-
-
-
-
-
-
-#### 3: Question 5 \
+#### 3.4: Question 5 \
 **Q5: Comment on changes in the data with time: a) earthquakes per year, b) type of earthquakes, and c) magnitude resolution. Include a figure [5 marks]** \
-a.) It appears that on a global average earthquakes overall are steadily increasing
-b.) Naturally occurring earthquakes (to our knowledge) are consistently the most common type recorded within this data frame. We begin to see an increase in nuclear explosions resulting in earthquakes between approximately 1975 to the late 1980s then decrease again. This makes sense, as the nuclear arms race apart of the Cold War was ongoing at this time, ending in 1991. Other noted explosions are not reported very well (n=5).
-c.) 
 
-```{r}
-earthquakes_frequency_sum=earthquakes %>%
+a.) It appears that on a global average earthquakes overall are steadily increasing.. we could see this trend line from our Q3 figure too. \
+b.) Naturally occurring earthquakes (to our knowledge) are consistently the most common type recorded within this data frame. We begin to see an increase in nuclear explosions resulting in earthquakes between approximately 1975 to the late 1980s then decrease again. This makes sense, as the nuclear arms race apart of the Cold War was ongoing at this time, ending in 1991. Other noted explosions are not reported very well (n=5), and reflect poorly within our figure. \
+c.) We see really high average monthly magnitude resolution values prior to the 1970s, a decrease between the mid 1970s to mid 1980s, and then average magnitude values appear to remain stable or consistent onwards. However, this can also maybe in part be explained by the increase in earthquakes overall: the more data points you have with a similar range the more likely you'll get a lower or more central average. But based on the average annual magnitude there is 'little' change but the average monthly values within years are a lot crazier (higher highs and lower lows). Or it might be because of changes in technology, so magnitude resolution can detect lower lows, but that would mean that the highs are very much higher (makes sense?).
+
+```{r Quick Code: Q5, include=TRUE}
+earthquakes_frequency_sum=earthquakes %>%  #create new df
   group_by(year, type) %>%
   count() %>%
-print()
+print()#View object created appears properly 
 ```
-add chunk headers here
-```{r}
-earthquakes_frequency_sum2=earthquakes %>%
-  group_by(year) %>%
-  count() %>%
+
+For some odd, unknown reason I cannot get the following code chunk to knit when there is a header within it. I have tried altering it many times in many ways. Weird. 
+
+```{r }
+earthquakes_frequency_sum2=earthquakes %>%               #create new df
+  group_by(year) %>%                                    #group variables by year
+  count() %>%                                           #number of observations 
  left_join(earthquakes_frequency_sum, earthquakes_frequency_sum, by="year") %>%
 #Here, n.x=total observed earthquakes per year // n.y=total earthquakes per type
-  rename(total_quakes=n.x) %>%
-  rename(total_quakes_per_type=n.y) %>%
-  mutate(type=case_when(
+  rename(total_quakes=n.x) %>%                          #rename col header
+  rename(total_quakes_per_type=n.y) %>%                 #rename col header
+  mutate(type=case_when(                                #rename within `type` col
           type=="earthquake" ~ "Earthquake",
           type=="nuclear explosion" ~ "Nuclear Explosion",
           type=="explosion" ~ "Explosion",
           type=="volcanic eruption" ~ "Volcanic Eruption")) %>%
-#left_join(earthquakes_frequency_sum, earthquakes, by="year") %>%
-print()
+print()                                   #View object created appears properly 
 ```
-*Side note: notable comments and problems.. \
-```{r Q5 figure 1 include=TRUE}
+
+```{r Q5 Figure 1, include=TRUE}
 #Generate plot:
-frequency_figure=earthquakes_frequency_sum2 %>%
+q5fig1=earthquakes_frequency_sum2 %>%           #create new object
   ggplot() +
-#  facet_wrap(vars(type), ncol=4, scales="free") + #Create a grid w/ 4 columns 
-  geom_line(aes(x=year, y=total_quakes_per_type, colour=type, fill=type), alpha=0.75)+
   geom_line(aes(x=year, y=total_quakes_per_type, colour=type, fill=type), alpha=0.75)+
   #  geom_point(aes(x=year, y=total_quakes_per_type, colour=type, fill=type), alpha=.5)+
     xlim(1960,2023) + 
@@ -338,47 +446,91 @@ frequency_figure=earthquakes_frequency_sum2 %>%
 #                               "Volcanic Eruption")) +
 #Editing legend:
   theme_bw() +
-  theme(legend.position="right") +            #Select where the legend rests
-  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
-  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
-  theme(legend.title=element_blank()) +             #Remove legend title
+  theme(legend.position="right") +            #select where the legend rests
+  theme(legend.key.size=unit(0.35, 'cm')) +         #decrease legend size
+  theme(legend.margin=margin(t=0.25, unit='cm')) +  #reduce legend margin
+  theme(legend.title=element_blank()) +             #remove legend title
 #Generating label titles: 
-  labs(title="Change in Earthquake Frequency (1960-2023)", #Main caption
-       subtitle="Based on reported major earthquake types", #Sub-caption
-       x=expression(atop("Year")),                         #x-axis title
-       y=expression("Number of Earthquakes Observed"))     #y-axis-title
+  labs(title="Change in Earthquake Frequency (1960-2023)",  #main caption
+       subtitle="Based on reported major earthquake types", #sub-caption
+       x=expression(atop("Year")),                          #x-axis title
+       y=expression("Number of Earthquakes Observed"))      #y-axis-title
 
-print(frequency_figure)
+print(q5fig1)                 #View object created appears properly 
 ```
-```{r}
-average_mag_figure=earthquakes %>%
+
+I quickly checked that these values were actually computing correctly and they
+appear to do so. Magnitude average for 1960=6.081 (`avg_mag`); magnitude average 
+for January (month 1) 1960=6.039 and February (month 2) 1960=5.950 and March.... (`avg_mag_ym`) checks out, rounded properly. \
+
+*Side note: one thing that happens when code is continuously manipulated down from the larger data frame is it can cause confusion later on from where you're pulling from. This is also how one ends up with waaaay too many new data frames with various, later absolutely nonsensical, data frame names. In future, loading in a CLEAN data frame consistently with one `Rmarkdown` per figure keeps things more organized.* \
+
+Yeah.. but this is tough when you only want specific values, or a smaller subset...
+
+```{r Quick Code: Q5 cnt, include=TRUE}
+mag=earthquakes %>%
+  group_by(year, month) %>%
+  mutate(avg_mag_ym=round(mean(mag, na.rm=TRUE), 2)) %>%
+  select(date, year, month, avg_mag, avg_mag_err, avg_mag_ym) %>%
+print()#View object created appears properly
+```
+
+Here, I did not need to manipulate the scales, so no `ylim(5.5,6.5)` or `xlim(1960,2023)`. 
+
+```{r Q5 Figure 2, include=TRUE}
+#Generate plot:
+q5fig2=mag %>%
   ggplot() +
-  geom_line(aes(x=year, y=avg_mag, colour=avg_mag, fill=avg_mag), alpha=0.75)+
-  geom_point(aes(x=year, y=avg_mag, fill=factor(avg_mag), alpha=0.5))+
-    xlim(1960,2023) + 
-    ylim(0,720) +
+  geom_point(aes(x=year, y=avg_mag_ym, colour=factor(year)), alpha=0.5, 
+             show.legend=FALSE) +
+  geom_line(aes(x=year, y=avg_mag, colour="#000000"), alpha=0.75, show.legend=FALSE)+
 #Edit the scales colour and aesthetics:
-  scale_colour_manual(values=c("#ff9f80"),
-                      labels=c("Average Magnitude")) +
-  scale_fill_manual(values=c("#ff9f80"),                 
-                    labels=c("Average Magnitude")) +
-#Editing legend:
   theme_bw() +
-  theme(legend.position="right") +            #Select where the legend rests
-  theme(legend.key.size=unit(0.35, 'cm')) +         #Decrease legend size
-  theme(legend.margin=margin(t=0.25, unit='cm')) +  #Reduce legend margin
-  theme(legend.title=element_blank()) +             #Remove legend title
+  scale_color_viridis(discrete=TRUE, option="plasma") +
 #Generating label titles: 
-  labs(title="Change in Earthquake Frequency (1960-2023)", #Main caption
-       subtitle="Based on reported major earthquake types", #Sub-caption
+  labs(title="Average Earthquake Magnitude (1960-2023)",   #main caption
+       subtitle="Average annual monthly magnitude and annual magnitude",
        x=expression(atop("Year")),                         #x-axis title
-       y=expression("Number of Earthquakes Observed"))     #y-axis-title
+       y=expression("Average Magnitude"))     #y-axis-title
 
-print(average_mag_figure)
+print(q5fig2)#View object created appears properly
 ```
+ 
 
-* have magnitiude spilt with this guy
+#### 3.5: Question 6 \
+**Q6: Comment on how lessons from Wilke’s Fundamentals of Data Visualization were applied to each figure with specific reference to book sections [5 marks]** \
 
+- **Q2 Figure 1:** This figure is asking to quantify a particular amount of something, reasonably small (n=2 factors). Wilke states in [Section 6.2](https://clauswilke.com/dataviz/visualizing-amounts.html) that bar charts are good for visualizing amounts of something. However, it should not be too long and ordered from tallest to shortest (should this not interfere with reading the data), as was done within this figure. Also that smaller data set values should have their actual numeric values added as per the recommendation, but I couldn't get them to work. However, he later states again in [Section 10.3](https://clauswilke.com/dataviz/visualizing-proportions.html) that often times it is difficult to read the data and compare them across stacked bar plots, which is why I then tried to created a nested pie chart instead. \
+
+* **Q2 Figure 2:** This figure is a failure and I was unable to use this code as a stepping stone towards creating a better Q2 Figure 3. \
+
+* **Q2 Figure 3:** Wilke provides a beautiful nested pie chart in [Section 11.3.](https://clauswilke.com/dataviz/nested-proportions.html) This figure would have probably been the better fit to describe this data, as it matches the prerequisites appropriately: proportion of one variable (weekday or weekend) which can then be subdivided further into another variable (day of the week). I tried to do this, but ultimately failed. \ 
+
+* **Q3 Figure 1:** God. I struggled with this question right to the bitter end, mostly because there could be a couple ways to do this, depending on what you wanted to know or do with the data. I ultimately ended up going with a line graph for a time series plot with a linear regression line at an attempt to classify the trend in data. This is okay-ed by Wilke in [Section 13.1](https://clauswilke.com/dataviz/time-series.html) with reasons expanded upon in Q5 Figure one. However, unlike Wilke later states in [Section 14.2](https://clauswilke.com/dataviz/visualizing-trends.html) if it is non-linear we should approximate what kind of relationship it actually is, which I didn't do. \
+
+* **Q3 Figure 2:** In complete honesty, this figure should have been a heat map for all of the reasons that Wilke states in [Section 6.3:](https://clauswilke.com/dataviz/visualizing-amounts.html) dealing with large data sets that have a lot of points to plot clearly with `geom_point`, and would have done a better job at highlighting a potential overall trend. We don't necessarily care of the individual values (they don't plot nicely anyways) so this should have happened. \ 
+
+* **Q4 Figure 1:** Here, we are asked to asses two types of categorical data: continent and a specific time period. As per Wilke in [Section 10.2](https://clauswilke.com/dataviz/visualizing-amounts.html) when there are two categorical variables along the x-axis, grouped bars are able to tackle this. The bar groupings are broken down into two variables: North and South America which is ultimately our main question, then organized by ascending year. This method is more intuitive and easier to look at rather than had we switched these around. Thanks, Wilke. \ 
+
+* **Q5 Figure 1:** Wilke mentions in [Section 13.1](https://clauswilke.com/dataviz/time-series.html) that classic line graphs are good for time series, as was asked of us for question five. In particular, this figure does not include `geom_point` for annual average earthquake values as it can muddle the graph when it is a dense time series (like 63 year's worth). Also, we are looking for the overall trends in the data throughout time, so yeah, just got rid of them. I also combined those four earthquake types because they are of the same 'class,' which was illustrated in the book. I wanted to fill in the line underneath for emphasis, but that was advised against (as per Wilke) because data values should start at zero. \ 
+
+* **Q5 Figure 2:** Under the 'Visualizing amounts' in [Section 6.3](https://clauswilke.com/dataviz/visualizing-amounts.html#dot-plots-and-heatmaps) Wilke states that dot pots can be used to display data, especially so when there is no zero start value. Much like here, I wanted to see the overall change in average magnitude (like a time series, which has been recommended for reasons as previously discussed) but did not want to loose the actual values of each point when completely averaged, which is why I went with this type of figure. This shows annual monthly averages too, so we can see a greater change in magnitiude resolution overtime.  
+
+________________________________________________________________________________
+#### 4. Closing Thoughts: \
+
+Wow. This assignment: \
+
+i.) Woke up my R coding brain and troubleshooting skills back from the dead again \
+ii.) Making decisions related to figure types is somehow sooo much harder than I ever remember it being. I wasn't sure how to really connect with this data because I didn't really know what I wanted to know. Also, that a figure is never complete. \
+
+Glad that this small assignment both destroyed and allowed me to become reborn 
+again. Also, I could feel myself start to slip back into my frantic coding self 
+(odd data frame or figure names, creating a multitude of objects with the same 
+name but adding numbers after them, hectic mini code chunks that are ill 
+defined, etc.). So, good to know that that hasn't gone away and needs to be 
+actively managed more thoroughly in future. 
+Code on (cry). 
 
 
 

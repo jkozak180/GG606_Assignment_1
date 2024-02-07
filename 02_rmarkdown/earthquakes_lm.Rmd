@@ -1,0 +1,20 @@
+---
+title: "earthquakes_time_lm"
+author: "Julia K"
+date: "2024-02-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Quick Code: Q3 cnt, include=TRUE}
+#earthquakes_time_lm=earthquakes_time %>%          #create new object   
+#  group_by(year)                                  #group analysis by year
+#  do(earthquakes_time,                
+#     glance(                                     #look at the linear regression 
+#       lm(n ~ year, data=.))) %>%                #target x predictor
+#summary(earthquakes_time_lm)                     #view final table
+```
+
