@@ -214,9 +214,9 @@ So the stacked bar seems to at least actually provide the most information.
 q2fig1=earthquakes_weekday_sum %>%                           #create new object
   ggplot() +
   geom_col(aes(x=factor(week_type), y=n, fill=factor(dayofweek))) +
-#  geom_text(aes(x="", y="", label=factor(dayofweek_total)), vjust= -0.5, color="black",                   size=3) +
+  #geom_text(aes(x="", y="", label=factor(dayofweek_total)), vjust= -0.5, color="black",                   size=3) +
 #Edit the scales colour and aesthetics: 
-  scale_fill_brewer(name="Number of Earthquakes", palette="Greens") +
+  scale_fill_brewer(name="Day of the Week", palette="Greens") +
   theme_bw() +
 #Editing the legend: 
   theme(legend.position="right") +               #select where the legend rests
@@ -506,9 +506,9 @@ print(q5fig2)#View object created appears properly
 
 * **Q2 Figure 3:** Wilke provides a beautiful nested pie chart in [Section 11.3.](https://clauswilke.com/dataviz/nested-proportions.html) This figure would have probably been the better fit to describe this data, as it matches the prerequisites appropriately: proportion of one variable (weekday or weekend) which can then be subdivided further into another variable (day of the week). I tried to do this, but ultimately failed. \ 
 
-* **Q3 Figure 1:** God. I struggled with this question right to the bitter end, mostly because there could be a couple ways to do this, depending on what you wanted to know or do with the data. I ultimately ended up going with a line graph for a time series plot with a linear regression line at an attempt to classify the trend in data. This is okay-ed by Wilke in [Section 13.1](https://clauswilke.com/dataviz/time-series.html) with reasons expanded upon in Q5 Figure one. However, unlike Wilke later states in [Section 14.2](https://clauswilke.com/dataviz/visualizing-trends.html) if it is non-linear we should approximate what kind of relationship it actually is, which I didn't do. \
+* **Q3 Figure 1:** God. I struggled with this question right to the bitter end, mostly because there could be a couple ways to do this, depending on what you wanted to know or do with the data. I ultimately ended up going with a line graph for a time series plot with a linear regression line at an attempt to classify the trend in data. This is okay-ed by Wilke in [Section 13.1](https://clauswilke.com/dataviz/time-series.html) with reasons expanded upon in Q5 Figure 1. However, unlike Wilke later states in [Section 14.2](https://clauswilke.com/dataviz/visualizing-trends.html) if it is non-linear we should approximate what kind of relationship it actually is, which I didn't do. \
 
-* **Q3 Figure 2:** In complete honesty, this figure should have been a heat map for all of the reasons that Wilke states in [Section 6.3:](https://clauswilke.com/dataviz/visualizing-amounts.html) dealing with large data sets that have a lot of points to plot clearly with `geom_point`, and would have done a better job at highlighting a potential overall trend. We don't necessarily care of the individual values (they don't plot nicely anyways) so this should have happened. \ 
+* **Q3 Figure 2:** In complete honesty, this figure should have been a heat map for all of the reasons that Wilke states in [Section 6.3:](https://clauswilke.com/dataviz/visualizing-amounts.html) dealing with large data sets that have a lot of points to plot clearly with `geom_point`, and would have done a better job at highlighting a potential overall trend. We don't necessarily care about the individual values (they don't plot nicely anyways) so this should have happened. \ 
 
 * **Q4 Figure 1:** Here, we are asked to asses two types of categorical data: continent and a specific time period. As per Wilke in [Section 10.2](https://clauswilke.com/dataviz/visualizing-amounts.html) when there are two categorical variables along the x-axis, grouped bars are able to tackle this. The bar groupings are broken down into two variables: North and South America which is ultimately our main question, then organized by ascending year. This method is more intuitive and easier to look at rather than had we switched these around. Thanks, Wilke. \ 
 
@@ -517,7 +517,7 @@ print(q5fig2)#View object created appears properly
 * **Q5 Figure 2:** Under the 'Visualizing amounts' in [Section 6.3](https://clauswilke.com/dataviz/visualizing-amounts.html#dot-plots-and-heatmaps) Wilke states that dot pots can be used to display data, especially so when there is no zero start value. Much like here, I wanted to see the overall change in average magnitude (like a time series, which has been recommended for reasons as previously discussed) but did not want to loose the actual values of each point when completely averaged, which is why I went with this type of figure. This shows annual monthly averages too, so we can see a greater change in magnitiude resolution overtime.  
 
 ________________________________________________________________________________
-#### 4. Closing Thoughts: \
+##### 4. Closing Thoughts: \
 
 Wow. This assignment: \
 
